@@ -27,7 +27,7 @@ class ReviewModelAdmin(admin.ModelAdmin):
 class ProductModelAdmin(admin.ModelAdmin):
     list_display = ['name' , 'price' , 'discount' , 'about'] 
     list_display_links = ['name' , 'price' , 'discount' , 'about'] 
-    list_filter = ['is_trandy']
+    list_filter = ['is_trendy']
 
 
 

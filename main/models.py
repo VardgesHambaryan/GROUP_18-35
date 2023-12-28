@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from django.db import models
 from django.utils.html import mark_safe
 from django.contrib.auth.models import User
@@ -74,7 +75,7 @@ class Color(models.Model):
 
 class Size(models.Model):
 
-    name = models.CharField('Color Name',max_length=5)
+    name = models.CharField('Size Name',max_length=5)
 
     def __str__(self) -> str:
         return self.name
@@ -91,37 +92,45 @@ class Image(models.Model):
         return mark_safe(f'<img src = "{self.img.url}" width = "60"/>')
 
 
+from django.db import models
+
 class Product(models.Model):
-
+    # Basic Information
     name = models.CharField('Product Name', max_length=255)
-    price = models.PositiveSmallIntegerField('Product Price')
-    discount = models.DecimalField('Discount Size',max_digits=3 ,decimal_places = 1)
     about = models.TextField('About Product')
-    is_trandy = models.BooleanField(default=False)
-
-
-    images = models.ManyToManyField(Image)
-    colors = models.ManyToManyField(Color)
-    sizes = models.ManyToManyField(Size)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products",null=True)
-
-
-    facebook = models.URLField('Facebook URL', blank=True)
-    twitter = models.URLField('Twitter URL', blank=True)
-    linedin = models.URLField('LinkedIn URL', blank=True)
-    pinterest = models.URLField('Pinterest URL', blank=True)
-
-
     description = models.TextField('Description')
     information = models.TextField('Information')
 
-    created_at = models.DateTimeField('Created At', auto_now_add=True,null=True)
-    updated_at = models.DateTimeField('Updated At',auto_now=True,null=True)
+    # Pricing and Discounts
+    price = models.PositiveSmallIntegerField('Product Price')
+    discount = models.DecimalField('Discount Size', max_digits=3, decimal_places=1)
+    discounted_price = models.DecimalField('Discounted Price', max_digits=10, decimal_places=2, blank=True, null=True)
 
+
+    # Product Attributes
+    is_trendy = models.BooleanField(default=False)
+    images = models.ManyToManyField('Image')
+    colors = models.ManyToManyField('Color')
+    sizes = models.ManyToManyField('Size')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='products', null=True)
+
+    # Social Media Links
+    facebook = models.URLField('Facebook URL', blank=True)
+    twitter = models.URLField('Twitter URL', blank=True)
+    linkedin = models.URLField('LinkedIn URL', blank=True)
+    pinterest = models.URLField('Pinterest URL', blank=True)
+
+    # Timestamps
+    created_at = models.DateTimeField('Created At', auto_now_add=True, null=True)
+    updated_at = models.DateTimeField('Updated At', auto_now=True, null=True)
 
     def __str__(self) -> str:
         return self.name
-    
+
+    def save(self, *args, **kwargs) -> None:
+        """Override the save method to set the discounted price."""
+        self.discounted_price = self.price * (1 - float(self.discount) / 100)
+        super(Product, self).save(*args, **kwargs)
 
 
 class Review(models.Model):
@@ -157,6 +166,12 @@ class StayUpdated(models.Model):
 
 class CooperativeCompanies(models.Model):
     image = models.ImageField('Image')
+
+    class Meta:
+        verbose_name = "CooperativeCompanie"
+        verbose_name_plural = "CooperativeCompanies"
+
+
 
 
 # ---------------------------------------Contact-Page----------------------------------------

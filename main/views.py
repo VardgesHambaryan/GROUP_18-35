@@ -1,14 +1,15 @@
 from typing import Any
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render , redirect
 from django.views.generic import ListView , DetailView
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import (
     GeneralSlider , HeaderTop , Category , Product,
     CooperativeCompanies
 )
 
 from .forms import (
-    ContactUsForm
+    ContactUsForm, StayUpdatedForm
 )
 
 
@@ -42,23 +43,75 @@ class HomeListView(ListView):
         return render(request , self.template_name , context=self.__extract_all_data())
 
 
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        form = StayUpdatedForm(request.POST)
+        if form.is_valid():
+            form.save()
+        else:
+            form = StayUpdatedForm()
+        
+
+        return redirect('home')
+
+
 class ShopListView(ListView):
     template_name = 'shop.html'
+    paginate_by = 1  # Number of products per page
+
 
     @staticmethod
-    def __extract_all_data():
+    def __extract_all_data(request):
         products = Product.objects.all()
+        paginator = Paginator(products, ShopListView.paginate_by)
+        page = request.GET.get('page')
+
+        try:
+            products = paginator.page(page)
+        except PageNotAnInteger:
+            # If page is not an integer, deliver first page.
+            products = paginator.page(1)
+        except EmptyPage:
+            # If page is out of range, deliver last page of results.
+            products = paginator.page(paginator.num_pages)
 
         context = {
             'nav': 'shop',
-            'products':products,
+            'products': products,
         }
 
         return context
-    
+
+
+    @staticmethod
+    def product_filter_by_price(queryset , price_ranges):
+        new_queryset = []
+        for price in price_ranges:
+            try:
+                upper_bound , lower_bound = map(int , price.replace('$' , '').split(' - '))
+            except Exception as ex:
+                price(ex)
+                return queryset
+            else:
+                queryset = queryset.filter(price__range=(lower_bound , upper_bound))
+                new_queryset.append(queryset)
+
+    @staticmethod
+    def product_filter_by_color(queryset, color_ids):
+        try:
+            queryset = queryset.filter(colors__in = color_ids)
+        except Exception as ex:
+            return queryset
+
+    @staticmethod
+    def product_filter_by_size(queryset, size_ids):
+        queryset = queryset.filter(sizes__in = size_ids)
+
+
+
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
 
-        return render(request , self.template_name , context=self.__extract_all_data())
+        return render(request , self.template_name , context=self.__extract_all_data(request))
+
 
 
 class ShopDetailView(DetailView):
@@ -95,10 +148,8 @@ class ContactListView(ListView):
             form.save()
         else:
             form = ContactUsForm()
-        
-        return render(request, self.template_name , context={
-            'form':form
-        })
+
+        return redirect("contact")
 
 
 class CartListView(ListView):
@@ -123,9 +174,6 @@ class CheckoutListView(ListView):
 
         }
         return render(request , self.template_name , context=context)
-
-
-
 
 
 
