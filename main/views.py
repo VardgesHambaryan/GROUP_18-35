@@ -1,21 +1,29 @@
 from typing import Any
+from django.urls import reverse
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render , redirect
-from django.views.generic import ListView , DetailView
+from django.views.generic import ListView , DetailView , TemplateView , FormView
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm , UserCreationForm
 from .models import (
     GeneralSlider , HeaderTop , Category , Product,
     CooperativeCompanies , GetInTouch , Store,
-    ShoppingCart,
+    ShoppingCart
 )
 
 from .forms import (
-    ContactUsForm, StayUpdatedForm, NewUserForm
+    ContactUsForm, StayUpdatedForm, NewUserForm,
+    CheckoutForm
 )
 
+
+from paypal.standard.forms import PayPalPaymentsForm
+from paypal.standard.models import ST_PP_COMPLETED
+from paypal.standard.ipn.signals import valid_ipn_received
+from django.dispatch import receiver
 
 
 class HomeListView(ListView):
@@ -29,8 +37,11 @@ class HomeListView(ListView):
         just_arrived = Product.objects.order_by('-created_at')[:8]
         trandy_products = Product.objects.order_by('-id')[:8]
         cooperative_companies = CooperativeCompanies.objects.all()
-        cart_items = ShoppingCart.objects.filter(user=request.user)
 
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
 
 
         context = {
@@ -65,16 +76,21 @@ class HomeListView(ListView):
 
 class ShopListView(ListView):
     template_name = 'shop.html'
-    paginate_by = 2  # Number of products per page
+    paginate_by = 3  # Number of products per page
 
 
     @staticmethod
     def __extract_all_data(request):
         categories = Category.objects.all()
         products = Product.objects.all()
-        cart_items = ShoppingCart.objects.filter(user=request.user)
         paginator = Paginator(products, ShopListView.paginate_by)
         page = request.GET.get('page')
+
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
+
 
         try:
             products = paginator.page(page)
@@ -123,9 +139,48 @@ class ShopListView(ListView):
 
 
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+      
+        query = request.GET.get('q', '')
+        price_ranges = request.GET.getlist('price_range')
+        color_ids = request.GET.getlist('color')
+        size_ids = request.GET.getlist('size')
 
-        return render(request , self.template_name , context=self.__extract_all_data(request))
+     
+        products = Product.objects.all()
 
+   
+        if query:
+            products = products.filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+
+        if price_ranges:
+            products = self.product_filter_by_price(products, price_ranges)
+
+        if color_ids:
+            products = self.product_filter_by_color(products, color_ids)
+
+        if size_ids:
+            products = self.product_filter_by_size(products, size_ids)
+
+       
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
+
+        context = {
+            # 'nav': 'shop',
+            # 'products': products,
+            # 'categories': Category.objects.all(),
+            'cart_items': cart_items,
+        }
+
+        context.update(self.__extract_all_data(request))
+
+        return render(request, self.template_name, context=context)
 
 
 class ShopDetailView(DetailView):
@@ -135,8 +190,10 @@ class ShopDetailView(DetailView):
     def get(self, request: HttpRequest, prod_id, *args: Any, **kwargs: Any) -> HttpResponse:
         categories = Category.objects.all()
         product = Product.objects.get(pk=prod_id)
-        cart_items = ShoppingCart.objects.filter(user=request.user)
-
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
 
         context = {
             'categories':categories,
@@ -163,7 +220,7 @@ class ShopDetailView(DetailView):
             cart.quantity += 1
             cart.save()
 
-        return redirect('home')
+        return redirect('shop')
 
 
 class ContactListView(ListView):
@@ -175,7 +232,10 @@ class ContactListView(ListView):
         categories = Category.objects.all()
         get_in_touch = GetInTouch.objects.get()
         stores = Store.objects.all()
-        cart_items = ShoppingCart.objects.filter(user=request.user)
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
 
 
         context = {
@@ -210,9 +270,17 @@ class CartListView(ListView):
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
 
         categories = Category.objects.all()
-        cart_items = ShoppingCart.objects.filter(user=request.user)
-        total_price = sum([item.product.price * item.quantity for item in cart_items])
-        
+
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
+
+        if cart_items:
+            total_price = sum([item.product.price * item.quantity for item in cart_items])
+        else:
+            total_price = 0
+
 
         context = {
             'nav': 'cart',
@@ -223,7 +291,13 @@ class CartListView(ListView):
         }
         return render(request , self.template_name , context=context)
 
+    def post(self, request):
+        prod_id = request.POST.get('product_id')
+        ShoppingCart.objects.filter(user=request.user).filter(product__id = prod_id).delete()
 
+
+        return redirect('cart')
+        
 
 class CheckoutListView(ListView):
     template_name = 'checkout.html'
@@ -232,18 +306,34 @@ class CheckoutListView(ListView):
     def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
 
         categories = Category.objects.all()
-        cart_items = ShoppingCart.objects.filter(user=request.user)
+        try:
+            cart_items = ShoppingCart.objects.filter(user=request.user)
+        except:
+            cart_items = []
 
-
+        if cart_items:
+            total_price = sum([item.product.price * item.quantity for item in cart_items])
+        else:
+            total_price = 0
         context = {
             'nav': 'checkout',
             'categories':categories,
             'cart_items':cart_items,
+            'total_price':total_price,
 
         }
         return render(request , self.template_name , context=context)
 
+    def post(self, request):
+        form = CheckoutForm(request.POST)
 
+        if form.is_valid():
+            form.save()
+        else:
+            form = CheckoutForm()
+            return redirect('checkout')
+
+        return redirect('checkout_payment')
 
 
 def register_request(request):
@@ -281,4 +371,32 @@ def logout_request(request):
 	logout(request)
 	messages.info(request, "You have successfully logged out.") 
 	return redirect("home")
+
+class Search(ListView):
+    template_name = 'search.html'
+    context_object_name = 'products'
+    paginate_by = 2
+
+    def get(self, request, *args, **kwargs):
+        query = self.request.GET.get('q')
+
+        if not query:
+            return redirect('shop')
+
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        query = self.request.GET.get('q')
+        return Product.objects.filter(
+            Q(name__icontains=query) |
+            Q(description__icontains=query) |
+            Q(category__name__icontains=query)
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['query'] = self.request.GET.get('q', '')
+        return context
+
+
 

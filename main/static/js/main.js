@@ -102,3 +102,7 @@
     
 })(jQuery);
 
+
+$('.btn btn-sm btn-primary').on('click', function (value){
+    
+})

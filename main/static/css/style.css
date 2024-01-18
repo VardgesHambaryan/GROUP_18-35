@@ -194,6 +194,7 @@ figure {
 img {
   vertical-align: middle;
   border-style: none;
+  
 }
 
 svg {
@@ -6079,6 +6080,12 @@ a.close.disabled {
 
 .align-middle {
   vertical-align: middle !important;
+  font-size: 17px;
+}
+
+.Grdon {
+  position: relative;
+  top: -20px;
 }
 
 .align-bottom {

@@ -1,5 +1,5 @@
 from django import forms
-from .models import StayUpdated , ContactUs
+from .models import StayUpdated , ContactUs , Checkout
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
@@ -28,3 +28,7 @@ class ContactUsForm(forms.ModelForm):
         model = ContactUs
         fields = '__all__'
   
+class CheckoutForm(forms.ModelForm):
+	class Meta:
+		model = Checkout
+		fields = '__all__'

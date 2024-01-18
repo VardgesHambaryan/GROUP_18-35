@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-0gg_5na+-eg$n+%)wd@e_^!xml5tche=22o8%#dqus9hw&k2vq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1"]
 
 
 # Application definition
@@ -39,8 +39,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "main.apps.MainConfig",
+    "payment.apps.PaymentConfig",
     "phonenumber_field",
 ]
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -130,3 +132,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+PAYPAL_CLIENT_ID = 'AU5_-LoNnR84-84TCI8f2lhW7MtTDPMphyyuAHbG0RKWlBb2zbXqmOT0M7PSIqDpYuD729SQ1Ju7zbGG'
+PAYPAL_SECRET = 'EPmfq8DT3KczVj6Tn78Q-r_m9Be3hUXqCddUl_0AAajKBfIsKeWHQ9nNryBuaP-5O5wpa72c69cZ0d-N'
+
+

@@ -32,15 +32,16 @@
                     <tbody class="align-middle">
                         {% for item in cart_items %}
                         <tr>
-                            <td class="align-middle">
+                            <td class="align-middle" >
                                 {% with first_image=item.product.images.first %}
                                     {% if first_image %}
-                                        <img src="{{ first_image.img.url }}" alt="" style="width: 50px;">
+                                        <img src="{{ first_image.img.url }}" alt=""  style="width: 50px; display: flex; margin-top: 20px">
 
                                     {% endif %}
                                 {% endwith %}
 
-                            {{item.product.name}}</td>
+                            <p class="Grdon">{{item.product.name}}</p>
+                        </td>
                             <td class="align-middle">${{ item.product.price }}</td>
                             <td class="align-middle">
                                 <div class="input-group quantity mx-auto" style="width: 100px;">
@@ -58,10 +59,15 @@
                                 </div>
                             </td>
                             <td class="align-middle">${{ item.total_price }}</td>
-                            <form method='post'>
+                            <form id="deleteForm" method='post'>
                                 {% csrf_token %}    
-                            <td class="align-middle"><button type="submit" class="btn btn-sm btn-primary"><i class="fa fa-times"></i></button></td>
+                                <td class="align-middle">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="sendDeleteRequest('{{ item.product.id }}')">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </td>
                             </form>
+                            
                             
                         </tr>
                         {% endfor %}
@@ -96,11 +102,46 @@
                             <h5 class="font-weight-bold">Total</h5>
                             <h5 class="font-weight-bold">${{ total_price }}</h5>
                         </div>
-                        <button class="btn btn-block btn-primary my-3 py-3">Proceed To Checkout</button>
+                        <a href="{% url 'checkout' %}"><button class="btn btn-block btn-primary my-3 py-3">Proceed To Checkout</button></a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     <!-- Cart End -->
+
+    <script>
+        function sendDeleteRequest(productId) {
+            var formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            formData.append('product_id', productId);
+            formData.append('user_id', '{{ request.user.id }}');
+            formData.append('user_username', '{{ request.user.username }}');
+            // Add other user information as needed
+    
+            fetch('/shopping-cart/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+    
+                // Handle the response as needed
+                if (data.status === 'success') {
+                    alert('Product deleted successfully');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+
+            })
+            .catch(error => {
+                // Handle errors
+                console.error('Error:', error);
+            });
+        }
+    </script>
 {% endblock %}

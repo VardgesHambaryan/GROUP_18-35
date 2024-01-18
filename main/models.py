@@ -238,3 +238,26 @@ class Store(models.Model):
 
 
 # ----------------------------------------------------------------------------------------------
+
+
+class Checkout(models.Model):
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    email = models.EmailField(max_length=254)
+    phone = PhoneNumberField()
+    address_line_1 = models.CharField(max_length=250)
+    address_line_2 = models.CharField(max_length=250, blank=True)
+    country = models.CharField(max_length=255)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=50)
+    zip_code = models.DecimalField(max_digits=6, decimal_places=0)
+    payed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+    class Meta:
+        verbose_name = 'Checkout'
+        verbose_name_plural = 'Checkout'
+
+    
